@@ -17,7 +17,7 @@ const SPACE_URL = "https://miali.signalwire.com";
 const FROM_NUMBER = "+12094870600";
 
 /* ======================
-   🧠 内存数据库
+   🧠 内存消息库
 ====================== */
 let messages = [];
 
@@ -25,16 +25,14 @@ let messages = [];
    📥 获取消息
 ====================== */
 app.get("/messages", (req, res) => {
-    res.json({
-        success: true,
-        data: messages
-    });
+    res.json(messages);
 });
 
 /* ======================
    📤 发送短信
 ====================== */
 app.post("/send", async (req, res) => {
+
     const { to, message } = req.body;
 
     if (!to || !message) {
@@ -73,6 +71,8 @@ app.post("/send", async (req, res) => {
         });
 
     } catch (err) {
+        console.log("SIGNALWIRE ERROR:", err.response?.data || err.message);
+
         res.status(500).json({
             success: false,
             error: err.response?.data || err.message
@@ -84,21 +84,25 @@ app.post("/send", async (req, res) => {
    📥 接收短信 webhook
 ====================== */
 app.post("/receive", (req, res) => {
-    try {
-        const from = req.body.From;
-        const body = req.body.Body;
 
-        messages.push({
-            type: "incoming",
-            from,
-            message: body,
-            time: Date.now()
-        });
+    const from = req.body.From;
+    const body = req.body.Body;
 
-        res.sendStatus(200);
-    } catch (e) {
-        res.status(500).send("error");
-    }
+    messages.push({
+        type: "incoming",
+        from,
+        message: body,
+        time: Date.now()
+    });
+
+    res.sendStatus(200);
+});
+
+/* ======================
+   🚀 健康检查
+====================== */
+app.get("/", (req, res) => {
+    res.send("SMS CRM is running ✅");
 });
 
 /* ======================
