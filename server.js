@@ -1,20 +1,16 @@
 const express = require("express");
-const axios = require("axios");
 const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
+const axios = require("axios");
+const Database = require("better-sqlite3");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
-
-// ======================
-// 🌐 静态前端
-// ======================
 app.use(express.static(__dirname));
 
 // ======================
-// 🔑 SignalWire（先保留）
+// 🔑 SignalWire 配置
 // ======================
 const PROJECT_ID = "YOUR_PROJECT_ID";
 const TOKEN = "YOUR_TOKEN";
@@ -22,11 +18,12 @@ const SPACE_URL = "https://miali.signalwire.com";
 const FROM_NUMBER = "+12094870600";
 
 // ======================
-// 🧠 SQLite
+// 🧠 SQLite (better-sqlite3)
 // ======================
-const db = new sqlite3.Database("sms.db");
+const db = new Database("sms.db");
 
-db.run(`
+// 初始化表（同步写法）
+db.prepare(`
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT,
@@ -35,16 +32,27 @@ CREATE TABLE IF NOT EXISTS messages (
     message TEXT,
     time INTEGER
 )
-`);
+`).run();
+
+// ======================
+// 💾 保存消息
+// ======================
+function saveMessage(type, sender, receiver, message) {
+    db.prepare(`
+        INSERT INTO messages (type, sender, receiver, message, time)
+        VALUES (?, ?, ?, ?, ?)
+    `).run(type, sender, receiver, message, Date.now());
+}
 
 // ======================
 // 📥 获取消息
 // ======================
 app.get("/messages", (req, res) => {
-    db.all("SELECT * FROM messages ORDER BY time ASC", (err, rows) => {
-        if (err) return res.status(500).json(err);
-        res.json(rows);
-    });
+    const rows = db.prepare(`
+        SELECT * FROM messages ORDER BY time ASC
+    `).all();
+
+    res.json(rows);
 });
 
 // ======================
@@ -54,7 +62,7 @@ app.post("/send", async (req, res) => {
     const { to, message } = req.body;
 
     if (!to || !message) {
-        return res.status(400).json({ error: "missing data" });
+        return res.status(400).json({ error: "missing to or message" });
     }
 
     try {
@@ -73,40 +81,40 @@ app.post("/send", async (req, res) => {
             }
         );
 
-        db.run(
-            "INSERT INTO messages (type, sender, receiver, message, time) VALUES (?, ?, ?, ?, ?)",
-            ["outgoing", FROM_NUMBER, to, message, Date.now()]
-        );
+        saveMessage("outgoing", FROM_NUMBER, to, message);
 
-        res.json({ success: true });
+        res.json({
+            success: true,
+            sid: response.data.sid
+        });
 
     } catch (err) {
         res.status(500).json({
-            error: err.response?.data || err.message
+            success: false,
+            error: err.message
         });
     }
 });
 
 // ======================
-// 📥 webhook接收
+// 📥 webhook 接收短信
 // ======================
 app.post("/receive", (req, res) => {
     const from = req.body.From;
     const body = req.body.Body;
 
-    db.run(
-        "INSERT INTO messages (type, sender, receiver, message, time) VALUES (?, ?, ?, ?, ?)",
-        ["incoming", from, FROM_NUMBER, body, Date.now()]
-    );
+    saveMessage("incoming", from, FROM_NUMBER, body);
 
     res.sendStatus(200);
 });
 
 // ======================
-// 🚀 启动
+// 🚀 启动服务（Render必备）
 // ======================
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log("CRM running on http://localhost:3000");
+    console.log("CRM running on port", PORT);
 });
+
+module.exports = app;
