@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>SMS CRM FULL SYSTEM</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  display:flex;
+  height:100vh;
+  background:#0b1220;
+  color:white;
+}
+
+/* 左侧 */
+.left {
+  width:28%;
+  background:#111827;
+  overflow:auto;
+  border-right:1px solid #222;
+}
+
+.top {
+  padding:10px;
+  border-bottom:1px solid #222;
+  display:flex;
+  gap:6px;
+}
+
+.top input {
+  flex:1;
+  padding:6px;
+  border:none;
+  border-radius:6px;
+}
+
+.top button {
+  padding:6px 10px;
+  background:#3b82f6;
+  border:none;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.item {
+  padding:10px;
+  border-bottom:1px solid #222;
+  cursor:pointer;
+  position:relative;
+}
+
+.item:hover {
+  background:#1f2937;
+}
+
+.deleteBtn {
+  position:absolute;
+  right:8px;
+  top:8px;
+  background:#ef4444;
+  border:none;
+  color:white;
+  border-radius:4px;
+  padding:2px 6px;
+  font-size:10px;
+  cursor:pointer;
+}
+
+/* 中间 */
+.middle {
+  width:52%;
+  display:flex;
+  flex-direction:column;
+}
+
+.chat {
+  flex:1;
+  padding:10px;
+  overflow:auto;
+}
+
+.msg {
+  margin:8px 0;
+  padding:8px;
+  border-radius:8px;
+  max-width:70%;
+  font-size:13px;
+}
+
+.me {
+  background:#2563eb;
+  margin-left:auto;
+}
+
+.them {
+  background:#374151;
+}
+
+/* 输入 */
+.input {
+  display:flex;
+  padding:10px;
+  background:#1f2937;
+}
+
+input {
+  flex:1;
+  padding:8px;
+  border:none;
+  border-radius:6px;
+}
+
+/* 右侧CRM */
+.right {
+  width:20%;
+  background:#111827;
+  overflow:auto;
+  padding:8px;
+  font-size:11px;
+}
+
+.field {
+  margin:6px 0;
+}
+
+.field div {
+  font-size:10px;
+}
+
+.field input {
+  width:100%;
+  padding:4px;
+  font-size:11px;
+  border-radius:4px;
+  border:none;
+}
+
+button {
+  margin-left:8px;
+  padding:8px 12px;
+  background:#22c55e;
+  border:none;
+  color:white;
+  border-radius:6px;
+  cursor:pointer;
+}
+
+.empty {
+  color:#9ca3af;
+  padding:10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- LEFT -->
+<div class="left">
+
+  <div class="top">
+    <input id="newNumber" placeholder="Enter number">
+    <button onclick="createChat()">+</button>
+  </div>
+
+  <div id="sessions"></div>
+</div>
+
+<!-- MIDDLE -->
+<div class="middle">
+
+  <div style="padding:10px;background:#1f2937;">
+    💬 SMS CRM SYSTEM
+  </div>
+
+  <div class="chat" id="chat"></div>
+
+  <div class="input">
+    <input id="msg" placeholder="Type message..." />
+    <button onclick="send()">Send</button>
+  </div>
+
+</div>
+
+<!-- RIGHT -->
+<div class="right">
+
+  <h3>🧾 CRM</h3>
+
+  <div><b>Current:</b></div>
+  <div id="currentNumber">None</div>
+
+  <hr>
+
+  <div class="field"><div>引流软件</div><input></div>
+  <div class="field"><div>引流日期</div><input></div>
+  <div class="field"><div>客户姓名</div><input></div>
+  <div class="field"><div>客户年龄</div><input></div>
+  <div class="field"><div>客户工作</div><input></div>
+  <div class="field"><div>工作年限</div><input></div>
+  <div class="field"><div>婚姻状况</div><input></div>
+  <div class="field"><div>客户所在地</div><input></div>
+  <div class="field"><div>定居年限</div><input></div>
+  <div class="field"><div>籍贯</div><input></div>
+  <div class="field"><div>族裔</div><input></div>
+  <div class="field"><div>引流给谁</div><input></div>
+  <div class="field"><div>其他信息</div><input></div>
+
+</div>
+
+<script>
+
+let currentNumber = null;
+let messages = [];
+
+/* ======================
+   新建聊天
+====================== */
+function createChat() {
+
+  const num = document.getElementById("newNumber").value;
+  if(!num) return;
+
+  currentNumber = num;
+  document.getElementById("currentNumber").innerText = num;
+
+  openChat(num);
+  updateSessions();
+
+  document.getElementById("newNumber").value = "";
+}
+
+/* ======================
+   删除会话（完整）
+====================== */
+function deleteChat(num) {
+
+  if(!confirm("Delete this conversation?")) return;
+
+  messages = messages.filter(m =>
+    !(m.to === num || m.from === num)
+  );
+
+  if(currentNumber === num) {
+    currentNumber = null;
+    document.getElementById("chat").innerHTML = "";
+    document.getElementById("currentNumber").innerText = "None";
+  }
+
+  updateSessions();
+}
+
+/* ======================
+   会话列表
+====================== */
+function updateSessions() {
+
+  const map = {};
+
+  messages.forEach(m => {
+    const num = m.to || m.from;
+    if(!map[num]) {
+      map[num] = {
+        number: num,
+        last: m.message
+      };
+    }
+  });
+
+  if(currentNumber && !map[currentNumber]) {
+    map[currentNumber] = {
+      number: currentNumber,
+      last: ""
+    };
+  }
+
+  const box = document.getElementById("sessions");
+  box.innerHTML = "";
+
+  Object.values(map).forEach(s => {
+
+    const div = document.createElement("div");
+    div.className = "item";
+
+    div.innerHTML = `
+      <b>${s.number}</b><br>
+      <small>${s.last || ""}</small>
+      <button class="deleteBtn" onclick="event.stopPropagation(); deleteChat('${s.number}')">x</button>
+    `;
+
+    div.onclick = () => openChat(s.number);
+
+    box.appendChild(div);
+  });
+}
+
+/* ======================
+   打开聊天（防空）
+====================== */
+function openChat(num) {
+
+  currentNumber = num;
+  document.getElementById("currentNumber").innerText = num;
+
+  const chat = document.getElementById("chat");
+  chat.innerHTML = "";
+
+  const list = messages.filter(m => m.to === num || m.from === num);
+
+  if(list.length === 0) {
+    chat.innerHTML = `<div class="empty">No messages yet</div>`;
+    return;
+  }
+
+  list.forEach(m => {
+
+    const div = document.createElement("div");
+    div.className = "msg " + (m.type === "outgoing" ? "me" : "them");
+    div.innerText = m.message;
+
+    chat.appendChild(div);
+  });
+}
+
+/* ======================
+   发送短信
+====================== */
+async function send() {
+
+  const msg = document.getElementById("msg").value;
+  if(!currentNumber || !msg) return;
+
+  await fetch("http://localhost:3000/send", {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({
+      to: currentNumber,
+      message: msg
+    })
+  });
+
+  messages.push({
+    type:"outgoing",
+    to: currentNumber,
+    message: msg
+  });
+
+  updateSessions();
+  openChat(currentNumber);
+
+  document.getElementById("msg").value = "";
+}
+
+/* ======================
+   拉取数据
+====================== */
+async function load() {
+
+  const res = await fetch("http://localhost:3000/messages");
+  messages = await res.json();
+
+  updateSessions();
+
+  if(currentNumber) openChat(currentNumber);
+}
+
+setInterval(load, 2000);
+load();
+
+</script>
+
+</body>
+</html>
