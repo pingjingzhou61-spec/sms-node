@@ -9,21 +9,20 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 /* ======================
-   🔑 SignalWire 配置
+   🔑 SignalWire 配置（已填好）
 ====================== */
-const PROJECT_ID = "YOUR_PROJECT_ID";
-const TOKEN = "YOUR_TOKEN";
+const PROJECT_ID = "fe292bec-f3cb-4d04-90a5-e45840163120";
+const TOKEN = "PTdb07a5dc06822383cc59fb885ba08c57a300fc2fa4a151d3";
 const SPACE_URL = "https://miali.signalwire.com";
 const FROM_NUMBER = "+12094870600";
 
 /* ======================
-   🧠 内存数据库（稳定版）
-   ⚠️ Render重启会清空，但不会崩
+   🧠 内存数据库
 ====================== */
 let messages = [];
 
 /* ======================
-   📥 获取所有消息
+   📥 获取消息
 ====================== */
 app.get("/messages", (req, res) => {
     res.json({
@@ -76,13 +75,13 @@ app.post("/send", async (req, res) => {
     } catch (err) {
         res.status(500).json({
             success: false,
-            error: err.message
+            error: err.response?.data || err.message
         });
     }
 });
 
 /* ======================
-   📥 webhook 接收短信
+   📥 接收短信 webhook
 ====================== */
 app.post("/receive", (req, res) => {
     try {
@@ -103,14 +102,7 @@ app.post("/receive", (req, res) => {
 });
 
 /* ======================
-   🚀 Health Check（防 Render 假死）
-====================== */
-app.get("/", (req, res) => {
-    res.send("SMS CRM is running ✅");
-});
-
-/* ======================
-   🚀 启动（Render 必须）
+   🚀 启动
 ====================== */
 const PORT = process.env.PORT || 3000;
 
