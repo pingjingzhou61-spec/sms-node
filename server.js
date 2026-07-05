@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const Database = require("better-sqlite3");
 
 const app = express();
 
@@ -9,67 +8,34 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-/* ======================
-   🔑 SignalWire 配置
-====================== */
+// ======================
+// 🔑 SignalWire 配置
+// ======================
 const PROJECT_ID = "YOUR_PROJECT_ID";
 const TOKEN = "YOUR_TOKEN";
 const SPACE_URL = "https://miali.signalwire.com";
 const FROM_NUMBER = "+12094870600";
 
-/* ======================
-   🧠 SQLite 初始化（稳定版）
-====================== */
-const db = new Database("sms.db");
+// ======================
+// 🧠 内存数据库（100%稳定）
+// ======================
+let messages = [];
 
-// 创建表
-db.prepare(`
-CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    type TEXT,
-    sender TEXT,
-    receiver TEXT,
-    message TEXT,
-    time INTEGER
-)
-`).run();
-
-/* ======================
-   💾 保存消息
-====================== */
-function saveMessage(type, sender, receiver, message) {
-    db.prepare(`
-        INSERT INTO messages (type, sender, receiver, message, time)
-        VALUES (?, ?, ?, ?, ?)
-    `).run(type, sender, receiver, message, Date.now());
-}
-
-/* ======================
-   📥 获取消息列表
-====================== */
+// ======================
+// 📥 获取消息
+// ======================
 app.get("/messages", (req, res) => {
-    try {
-        const rows = db.prepare(`
-            SELECT * FROM messages ORDER BY time ASC
-        `).all();
-
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    res.json(messages);
 });
 
-/* ======================
-   📤 发送短信
-====================== */
+// ======================
+// 📤 发送短信
+// ======================
 app.post("/send", async (req, res) => {
     const { to, message } = req.body;
 
     if (!to || !message) {
-        return res.status(400).json({
-            success: false,
-            error: "missing to or message"
-        });
+        return res.status(400).json({ error: "missing to or message" });
     }
 
     try {
@@ -88,44 +54,44 @@ app.post("/send", async (req, res) => {
             }
         );
 
-        saveMessage("outgoing", FROM_NUMBER, to, message);
-
-        res.json({
-            success: true,
-            sid: response.data.sid
+        messages.push({
+            type: "outgoing",
+            to,
+            message,
+            time: Date.now()
         });
+
+        res.json({ success: true, sid: response.data.sid });
 
     } catch (err) {
-        res.status(500).json({
-            success: false,
-            error: err.response?.data || err.message
-        });
+        res.status(500).json({ error: err.message });
     }
 });
 
-/* ======================
-   📥 SignalWire webhook 接收短信
-====================== */
+// ======================
+// 📥 webhook 接收短信
+// ======================
 app.post("/receive", (req, res) => {
-    try {
-        const from = req.body.From;
-        const body = req.body.Body;
+    const from = req.body.From;
+    const body = req.body.Body;
 
-        saveMessage("incoming", from, FROM_NUMBER, body);
+    messages.push({
+        type: "incoming",
+        from,
+        message: body,
+        time: Date.now()
+    });
 
-        res.sendStatus(200);
-    } catch (err) {
-        res.status(500).send("error");
-    }
+    res.sendStatus(200);
 });
 
-/* ======================
-   🚀 启动服务（Render兼容）
-====================== */
+// ======================
+// 🚀 启动
+// ======================
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log("🚀 CRM running on port", PORT);
+    console.log("CRM running on port", PORT);
 });
 
 module.exports = app;
